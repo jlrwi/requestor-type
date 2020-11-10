@@ -1,0 +1,14 @@
+{
+  "name": "@jlrwi/requestor_type",
+  "version": "1.0.0",
+  "description": "Algebraic data type for Parseq-style requestors",
+  "main": "requestor_type.min.js",
+  "scripts": {
+        "pretest": "extract-test ./src/requestor_type.js ./test/requestor_test.js",
+        "test": "node ./test/requestor_test.js",
+        "stage": "extract-min ./src/requestor_type.js ./requestor_type.min.js"
+  },
+  "author": "Jonathan Reimer",
+  "license": "ISC",
+  "type": "module"
+}
