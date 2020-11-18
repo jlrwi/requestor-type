@@ -1,5 +1,5 @@
 /*jslint
-    fudge, node
+    fudge
 */
 
 import {
