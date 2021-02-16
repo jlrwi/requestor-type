@@ -3,19 +3,22 @@
   "version": "1.0.0",
   "description": "Algebraic data type for Parseq-style requestors",
   "main": "requestor_type.min.js",
-    "directories": {
-        "source": "src",
-        "test": "test"
-    },
-    "devDependencies": {
-        "@jlrwi/jscheck": "*",
-        "@jlrwi/parseq": "*",
-        "@jlrwi/adt_tests": "*"
-    },
-    "dependencies": {
-        "@jlrwi/esfunctions": "*",
-        "@jlrwi/combinators": "*"
-    },
+  "directories": {
+    "source": "src",
+    "test": "test"
+  },
+  "files": [
+    "/src"
+  ],
+  "dependencies": {
+    "@jlrwi/combinators": "file:..\\combinators",
+    "@jlrwi/esfunctions": "file:..\\esfunctions"
+  },
+  "devDependencies": {
+    "@jlrwi/adt_tests": "file:..\\adt_tests",
+    "@jlrwi/jscheck": "file:..\\jscheck",
+    "@jlrwi/parseq": "file:..\\parseq"
+  },
   "scripts": {
     "pretest": "extract-test ./src/requestor_type.js ./test/requestor_test.js",
     "test": "node ./test/requestor_test.js",

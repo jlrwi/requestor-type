@@ -57,13 +57,12 @@ const map = function (f) {
 
         // Return a new requestor by applying a callback to original
         return function (callback) {
-
             const mapped_callback = function (value, reason) {
-                return (
-                    value === undefined
-                    ? callback (undefined, reason)
-                    : callback (f (value))
-                );
+                if (value === undefined) {
+                    callback (undefined, reason);
+                } else {
+                    callback (f (value));
+                }
             };
 
             return requestor (mapped_callback);
