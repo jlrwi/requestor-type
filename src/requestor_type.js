@@ -1,5 +1,37 @@
 /*jslint
-    fudge
+    node, fudge
+*/
+
+/*
+Requestor is a construct created by Douglas Crockford in his parseq library
+
+A requestor represents a future result (or failure) of a generic piece of work.
+
+Requestors are structured as follows:
+    function requestor (callback) {
+        return function (parameter) {
+
+            <Initiate work without blocking>
+
+            <success: callback (result)>
+            <failure: callback (undefined, reason)>
+
+            return function cancel (reason) {
+                // cancel the work in progress
+            };
+        };
+    }
+Note: returning a cancel function is optional, and a cancel function is not
+required to succeed.
+
+and where callback takes the form:
+    function callback (value, reason) {
+        if (value === undefined) {
+            // error case
+        } else {
+            // value holds result
+        }
+    }
 */
 
 import {
@@ -29,75 +61,69 @@ import {
 
 const type_name = "Requestor";
 
-//A requestor represents a future result (or failure) of a generic piece of work
-//Requestors are called as follows:
-//  requestor (callback) (parameter)
-//where callback takes the form:
-//  callback (value, reason) {}
-//and requestor can return a cancel function of the form:
-//  cancel (reason)
-
-//create <a -> b>
+//create a requestor from a non-blocking unary function (a -> b)
 const create = function (unary_fx) {
     return function requestor (callback) {
         return function (value) {
             try {
-                return callback (unary_fx (value));
-            } catch (err) {
-                return callback (undefined, err);
+                callback (unary_fx (value));
+            } catch (exception) {
+                callback (undefined, exception.message);
             }
         };
     };
 };
 
-
-// Functor :: (a -> b) -> F<c->a> -> F<c->b>
-const map = function (f) {
-    return function (requestor) {
-
-        // Return a new requestor by applying a callback to original
-        return function (callback) {
-            const mapped_callback = function (value, reason) {
-                if (value === undefined) {
-                    callback (undefined, reason);
-                } else {
-                    callback (f (value));
-                }
-            };
-
-            return requestor (mapped_callback);
-        };
-    };
-};
-
+// Note that (b -> c) is NOT a requestor
 // Apply :: <a -> (b -> c)> -> <a -> b> -> <a -> c>
 const ap = function (abc_requestor) {
     return function (ab_requestor) {
-        return function (final_callback) {
+        return function ap_requestor (final_callback) {
             return function (a) {
-                // Use result of abc_requestor (b->c) to build callback for ab
-                const build_ab_callback = function (fbc) {
-                    return function (b, reason) {
-                        if (b === undefined) {
-                            final_callback (undefined, reason);
-                        } else {
-                            // Create a requestor from fbc and invoke it with b
-                            create (fbc) (final_callback) (b);
-                        }
-                    };
+                let cancel_function;
+                let cancel_reason;
+
+// Try to cancel whichever requestor is active at the moment
+                const cancel = function (reason) {
+
+// If there's a cancel_function, invoke it
+                    if (type_check ("function") (cancel_function)) {
+                        return cancel_function (reason);
+                    }
+
+// No cancel function for current requestor - save message for later
+                    cancel_reason = (
+                        type_check ("string") (reason)
+                        ? reason
+                        : "Composed requestor cancelled by user"
+                    );
                 };
 
-                // abc's callback will trigger ab next with (b -> c)
+// abc's callback will trigger ab next with (b -> c)
                 const abc_callback = function (fbc, reason) {
                     if (fbc === undefined) {
                         final_callback (undefined, reason);
+
+// User attempted to cancel but requestor didn't stop
+                    } else if (cancel_reason !== undefined) {
+                        final_callback (undefined, cancel_reason);
+
+// Store cancel fx from ab_requestor
                     } else {
-                        // value is (b -> c)
-                        ab_requestor (build_ab_callback (fbc)) (a);
+                        cancel_function = map (
+                            fbc
+                        ) (
+                            ab_requestor
+                        ) (
+                            final_callback
+                        ) (
+                            a
+                        );
                     }
                 };
 
-                abc_requestor (abc_callback) (a);
+                cancel_function = abc_requestor (abc_callback) (a);
+                return cancel;
             };
         };
     };
@@ -106,50 +132,57 @@ const ap = function (abc_requestor) {
 // Applicative :: b -> <a->b>
 const of = compose (create) (constant);
 
+// (b -> <a -> c>) is not a requestor, but returns a requestor
 // Chain :: (b -> <a -> c>) -> <a -> b> -> <a -> c>
 const chain = function (fbac) {
     return function (ab_requestor) {
-        return function (final_callback) {
+        return function chain_requestor (final_callback) {
             return function (a) {
+                let cancel_function;
+                let cancel_reason;
 
-                const ac_callback = function (c, reason) {
-                    if (c === undefined) {
+// Try to cancel whichever requestor is active at the moment
+                const cancel = function (reason) {
+
+// If there's a cancel_function, invoke it
+                    if (type_check ("function") (cancel_function)) {
+                        return cancel_function (reason);
+                    }
+
+// No cancel function for current requestor - save message for later
+                    cancel_reason = (
+                        type_check ("string") (reason)
+                        ? reason
+                        : "Composed requestor cancelled by user"
+                    );
+                };
+
+                const ab_callback = function (ac_requestor, reason) {
+                    if (ac_requestor === undefined) {
                         final_callback (undefined, reason);
+
+// User attempted to cancel but requestor didn't stop
+                    } else if (cancel_reason !== undefined) {
+                        final_callback (undefined, cancel_reason);
+
+// Finally invoke the <a->c> requestor with a
                     } else {
-                        final_callback (c);
+                        cancel_function = ac_requestor (final_callback) (a);
                     }
                 };
 
-                // ab's callback will trigger ab next with (b -> c)
-                const ab_callback = function (b, reason) {
-                    if (b === undefined) {
-                        final_callback (undefined, reason);
-                    } else {
-                        // fbac produces an <a->c> requestor
-                        fbac (b) (ac_callback) (a);
-                    }
-                };
-
-                ab_requestor (ab_callback) (a);
+// Extract the a->c requestor
+                cancel_function = adt_compose (
+                    create (fbac)
+                ) (
+                    ab_requestor
+                ) (
+                    ab_callback
+                ) (
+                    a
+                );
+                return cancel;
             };
-        };
-    };
-};
-
-// Profunctor :: (a -> b) -> (c -> d) -> <b -> c> -> <a -> d>
-const promap = function (fab) {
-    return function (fcd) {
-        return function (bc_requestor) {
-            return map (fcd) (contramap (fab) (bc_requestor));
-        };
-    };
-};
-
-// Contravariant :: (b -> a) -> <a -> c> -> <b -> c>
-const contramap = function (f) {
-    return function (ac_requestor) {
-        return function (callback) {
-            return compose (ac_requestor (callback)) (f);
         };
     };
 };
@@ -165,14 +198,61 @@ const contramap = function (f) {
 const adt_compose = function (bc_requestor) {
     return function (ab_requestor) {
         return function (final_callback) {
-            const ab_callback = function (b, reason) {
-                if (b === undefined) {
-                    final_callback (undefined, reason);
-                } else {
-                    bc_requestor (final_callback) (b);
-                }
+            return function (a) {
+                let cancel_function;
+                let cancel_reason;
+
+// return to caller to invoke cancel fx for the current requestor
+                const cancel = function (reason) {
+                    if (type_check ("function") (cancel_function)) {
+                        return cancel_function(reason);
+                    }
+
+// signal that user requested cancel during requestor lacking a cancel fx
+                    cancel_reason = (
+                        (reason === undefined)
+                        ? "Composed requestor cancelled by user"
+                        : reason
+                    );
+                };
+
+                const ab_callback = function (b, reason) {
+                    if (b === undefined) {
+                        final_callback (undefined, reason);
+
+// if cancel requested during first requestor that didn't have a cancel fx,
+// don't continue second requestor
+                    } else if (cancel_reason !== undefined) {
+                        final_callback (undefined, cancel_reason);
+
+// Start the next requestor and update the cancel function to use
+                    } else {
+                        cancel_function = bc_requestor (final_callback) (b);
+                    }
+                };
+
+                cancel_function = ab_requestor (ab_callback) (a);
+                return cancel;
             };
-            return ab_requestor (ab_callback);
+        };
+    };
+};
+
+// Functor :: (a -> b) -> <c -> a> -> <c -> b>
+const map = compose (adt_compose) (create);
+
+// Contravariant :: (b -> a) -> <a -> c> -> <b -> c>
+const contramap = function (fba) {
+    return function (ac_requestor) {
+        return adt_compose (ac_requestor) (create (fba));
+    };
+};
+
+// Profunctor :: (a -> b) -> (c -> d) -> <b -> c> -> <a -> d>
+const promap = function (fab) {
+    return function (fcd) {
+        return function (bc_requestor) {
+            return map (fcd) (contramap (fab) (bc_requestor));
         };
     };
 };

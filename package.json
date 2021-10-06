@@ -1,6 +1,6 @@
 {
   "name": "@jlrwi/requestor_type",
-  "version": "1.0.0",
+  "version": "1.2.0",
   "description": "Algebraic data type for Parseq-style requestors",
   "main": "requestor_type.min.js",
   "directories": {
@@ -17,6 +17,7 @@
   "devDependencies": {
     "@jlrwi/adt_tests": "file:..\\adt_tests",
     "@jlrwi/jscheck": "file:..\\jscheck",
+    "@jlrwi/package-processor": "file:../pkg_processor",
     "@jlrwi/parseq": "file:..\\parseq"
   },
   "scripts": {
