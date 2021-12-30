@@ -1,5 +1,5 @@
 {
-  "name": "@jlrwi/requestor_type",
+  "name": "@jlrwi/requestor-type",
   "version": "1.2.1",
   "description": "Algebraic data type for Parseq-style requestors",
   "main": "requestor_type.min.js",
