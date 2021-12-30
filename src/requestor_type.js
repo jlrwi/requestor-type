@@ -36,6 +36,15 @@
 //MD }/p
 //MD ```/p
 
+//MD ## Usage/p
+//MD Call the default export as follows to create a
+//MD [curried-static-land](https://github.com/jlrwi/curried-static-land)
+//MD module:/p
+//MD ```/p
+//MD import requestor_type from "@jlrwi/requestor-type";/p
+//MD const requestor_module = requestor_type();/p
+//MD ```/p
+
 //MD ## Module methods/p
 
 import {

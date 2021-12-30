@@ -27,6 +27,12 @@ function callback (value, reason) {
     }   
 }   
 ```   
+## Usage   
+Call the default export as follows to create a [curried-static-land](https://github.com/jlrwi/curried-static-land) module:   
+```   
+import requestor_type from "@jlrwi/requestor-type";   
+const requestor_module = requestor_type();   
+```   
 ## Module methods   
 ### .create(f)   
 Create a requestor from a non-blocking unary function.   
